@@ -15,7 +15,7 @@ import os
 import sys
 
 from yaml import safe_load
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -55,6 +55,7 @@ def main(arg = None):
                                   org=settings["REMOTE_ORG"])
     remoteClientQuery = remoteClient.query_api()
 
+    logger(localClientWrite, settings, "DEBUG", "Started mirror service.")
     mainLoop(localClientQuery, localClientWrite, remoteClientQuery)
 
 def mainLoop(localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClientQuery: QueryApi):
@@ -73,14 +74,7 @@ def mainLoop(localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClien
             
             performMirror(settings, localClientQuery, localClientWrite, remoteClientQuery)
 
-            ### Wait the requested timeout period ###
-            logger(localClientWrite, settings, "DEBUG", f"Waiting for {settings['REFRESH_RATE']} before trying to mirror.")
-            refreshRate = datetime.strptime(settings['REFRESH_RATE'], "%H:%M:%S")
-            timeToCheckRemoteDB = datetime.now() + timedelta(hours=refreshRate.hour, minutes=refreshRate.minute, seconds=refreshRate.second)
-            while True:
-                if timeToCheckRemoteDB <= datetime.now():
-                    break
-                time.sleep(0.2)
+            wait(settings, localClientWrite)
 
         except KeyboardInterrupt: #1
             scriptIsRunning = False
@@ -91,8 +85,11 @@ def mainLoop(localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClien
             print("Mirror service shutdown.")
             
             return
+        
         except Exception as e: #2
             logger(localClientWrite, settings, "ERROR", f"Python error occured: {e}")
+            wait(settings, localClientWrite)
+
 
 def logger(logWriter: WriteApi, settings: dict, level: str, message: str):
     """ Input: 
@@ -117,7 +114,7 @@ def logger(logWriter: WriteApi, settings: dict, level: str, message: str):
         level = str(level)
         message = str(level)
     
-    p = Point("Logs").tag("LOG_LEVEL", level).field("Message", message)
+    p = Point("Logs").tag("LOG_LEVEL", level).field("Message", message).time(time=datetime.now(tz=timezone.utc))
     logWriter.write("Logging", settings['LOCAL_ORG'], record=p)
 
 def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClientQuery: QueryApi):
@@ -214,6 +211,16 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
         localClientWrite.write(bucketName, settings["LOCAL_ORG"], record=points)
         logger(localClientWrite, settings, "DEBUG", f"Finished mirroring {len(points)} data points in the bucket: {bucketName}")
 
+def wait(settings, localClientWrite):
+    ### Wait the requested timeout period ###
+        logger(localClientWrite, settings, "DEBUG", f"Waiting for {settings['REFRESH_RATE']} before trying to mirror.")
+        refreshRate = datetime.strptime(settings['REFRESH_RATE'], "%H:%M:%S")
+        timeToCheckRemoteDB = datetime.now() + timedelta(hours=refreshRate.hour, minutes=refreshRate.minute, seconds=refreshRate.second)
+        while True:
+            if timeToCheckRemoteDB <= datetime.now():
+                break
+            time.sleep(0.2)
+    
 if __name__ == "__main__":
 
     # Catch the use case where the isRunning.pickle file has the wrong values
