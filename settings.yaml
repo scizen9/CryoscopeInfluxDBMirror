@@ -1,0 +1,13 @@
+REMOTE_IP: "131.215.200.64:8086"
+REMOTE_TOKEN: # TODO: Add an admin token for the remote database running on the remote mahine
+LOCAL_IP: "http://localhost:8086"
+LOCAL_TOKEN: # TODO: Add an admin token for the local database running on this computer
+LOCAL_ORG: "caltech"
+REFRESH_RATE: "00:00:30" # Hours:Minutes:Seconds between mirror attempts
+RECOVER_DATA_SINCE_DATE: "2024-07-20T12:00:00Z" # If the local database has no data, any data on the remote database with a '_time' timestamp after this date will be mirrored to the local
+BUCKETS: # Names of buckets to be mirrored. Make sure both the remote and local databases have buckets with identical names
+- AC_Power
+- Archon_Temperature
+- Computer_Temperature
+- LabJack_Temperature
+- Sunpower
