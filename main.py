@@ -14,6 +14,7 @@ import pickle
 import time
 import os
 import sys
+import traceback
 
 from yaml import safe_load
 from datetime import datetime, timedelta, timezone
@@ -75,6 +76,8 @@ def mainLoop(localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClien
             
             performMirror(settings, localClientQuery, localClientWrite, remoteClientQuery)
 
+            print("Waiting for the next iteration.")
+
             wait(settings, localClientWrite)
 
         except KeyboardInterrupt: #1
@@ -88,6 +91,8 @@ def mainLoop(localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClien
             return
         
         except Exception as e: #2
+            tb_str = traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)
+            print("".join(tb_str))
             logger(localClientWrite, settings, "ERROR", f"Python error occured: {e}")
             wait(settings, localClientWrite)
 
@@ -168,6 +173,7 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
             timeStamp = settings['RECOVER_DATA_SINCE_DATE']
     
         ## Request data time stamped after the most recent local data for this bucket ##
+        print("Qerying from: ", timeStamp)
         dataCSVIterator = remoteClientQuery.query_csv(f'from(bucket:"{bucketName}") |> range(start: {timeStamp})')
 
         ## #Push each data point to the local client ###
@@ -217,8 +223,10 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
                 points += [pointToMirror]
                 
         ### Actually mirror the point to local ###
+        print("Mirroring ", len(points), " records")
         localClientWrite.write(bucketName, settings["LOCAL_ORG"], record=points)
         logger(localClientWrite, settings, "DEBUG", f"Finished mirroring {len(points)} data points in the bucket: {bucketName}")
+        print("Done.")
 
 def wait(settings, localClientWrite):
     ### Wait the requested timeout period ###
