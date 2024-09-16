@@ -173,7 +173,7 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
             timeStamp = settings['RECOVER_DATA_SINCE_DATE']
     
         ## Request data time stamped after the most recent local data for this bucket ##
-        print("Qerying from: ", timeStamp)
+        print("Querying from: ", timeStamp)
         dataCSVIterator = remoteClientQuery.query_csv(f'from(bucket:"{bucketName}") |> range(start: {timeStamp})')
 
         ## #Push each data point to the local client ###
