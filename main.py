@@ -210,12 +210,9 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
             elif needHeaders == False:
                 # Check data type of resp[valueIdx]
                 try:
-                    val = int(resp[valueIdx])
+                    val = float(resp[valueIdx])
                 except ValueError:
-                    try:
-                        val = float(resp[fieldIdx])
-                    except ValueError:
-                        val = resp[valueIdx]
+                    val = resp[valueIdx]
                 pointToMirror = Point(resp[measurementIdx]).field(resp[fieldIdx], val).time(resp[timeIdx])
                 for tagName, tagIdx in zip(customTags.keys(), customTags.values()):
                     pointToMirror.tag(tagName, resp[tagIdx])
