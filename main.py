@@ -76,8 +76,6 @@ def mainLoop(localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClien
             
             performMirror(settings, localClientQuery, localClientWrite, remoteClientQuery)
 
-            print("Waiting for the next iteration.")
-
             wait(settings, localClientWrite)
 
         except KeyboardInterrupt: #1
@@ -220,20 +218,21 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
                 points += [pointToMirror]
                 
         ### Actually mirror the point to local ###
-        print("Mirroring ", len(points), " records")
+        print("Mirroring ", len(points), " data points")
         localClientWrite.write(bucketName, settings["LOCAL_ORG"], record=points)
         logger(localClientWrite, settings, "DEBUG", f"Finished mirroring {len(points)} data points in the bucket: {bucketName}")
         print("Done.")
 
 def wait(settings, localClientWrite):
     ### Wait the requested timeout period ###
-        logger(localClientWrite, settings, "DEBUG", f"Waiting for {settings['REFRESH_RATE']} before trying to mirror.")
-        refreshRate = datetime.strptime(settings['REFRESH_RATE'], "%H:%M:%S")
-        timeToCheckRemoteDB = datetime.now() + timedelta(hours=refreshRate.hour, minutes=refreshRate.minute, seconds=refreshRate.second)
-        while True:
-            if timeToCheckRemoteDB <= datetime.now():
-                break
-            time.sleep(0.2)
+    print("Waiting for ", settings['REFRESH_RATE'], " before trying to mirror.")
+    logger(localClientWrite, settings, "DEBUG", f"Waiting for {settings['REFRESH_RATE']} before trying to mirror.")
+    refreshRate = datetime.strptime(settings['REFRESH_RATE'], "%H:%M:%S")
+    timeToCheckRemoteDB = datetime.now() + timedelta(hours=refreshRate.hour, minutes=refreshRate.minute, seconds=refreshRate.second)
+    while True:
+        if timeToCheckRemoteDB <= datetime.now():
+            break
+        time.sleep(0.2)
     
 if __name__ == "__main__":
 
