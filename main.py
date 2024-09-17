@@ -221,7 +221,6 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
         print("Mirroring ", len(points), " data points")
         localClientWrite.write(bucketName, settings["LOCAL_ORG"], record=points)
         logger(localClientWrite, settings, "DEBUG", f"Finished mirroring {len(points)} data points in the bucket: {bucketName}")
-        print("Done.")
 
 def wait(settings, localClientWrite):
     ### Wait the requested timeout period ###
