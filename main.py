@@ -181,6 +181,11 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
         customTags = []
         points=[]
         for resp in dataCSVIterator:
+            # TODO: use these records to improve mirroring, skip for now
+            if "#datatype" in resp or "#group" in resp or "#default" in resp:
+                continue
+            if not needHeaders and "result" in resp:
+                continue
             if needHeaders and ('_value' in resp):
                 needHeaders = False
                 customTags = {} # key: index
