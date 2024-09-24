@@ -11,4 +11,5 @@ BUCKETS: # Names of buckets to be mirrored. Make sure both the remote and local 
 - Archon_Temperature
 - Computer_Temperature
 - LabJack_Temperature
+- PfeifferVacuum
 - Sunpower
