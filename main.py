@@ -8,7 +8,7 @@ Notes:
 2. Safely exit this script with ctrl-c
 3. If the script exits with an error or unexpected shut down, the script should be restarted with
     'python3 main.py forceOn'.
-It's setup this way so that multiple instances of this script won't create doulbe entrys
+It's setup this way so that multiple instances of this script won't create double entries
     in the local database.
 """
 
@@ -30,8 +30,8 @@ def main(arg = None):
     """Main routine"""
     if arg == "forceOn":
         script_is_running = False
-        with open("isRunning.pickle", "wb") as f:
-            pickle.dump(script_is_running, f)
+        with open("isRunning.pickle", "wb") as run_fl:
+            pickle.dump(script_is_running, run_fl)
 
     ### Check if this is the only instance running to avoid double mirroring ###
     with open("isRunning.pickle", "rb") as run_fl:
@@ -39,7 +39,7 @@ def main(arg = None):
 
     if is_running: # exit program
         print("This program is already running on this device, or exited due to an error. "
-              "It can be forceably started \nregardless of other instances "
+              "It can be forced to start \nregardless of other instances "
               "with 'python3 main.py forceOn'.")
         return
 
@@ -62,9 +62,10 @@ def main(arg = None):
     remote_client_query = remote_client.query_api()
 
     logger(local_client_write, settings, "DEBUG", "Started mirror service.")
-    mainLoop(local_client_query, local_client_write, remote_client_query)
+    main_loop(local_client_query, local_client_write, remote_client_query)
 
-def mainLoop(localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClientQuery: QueryApi):
+def main_loop(local_client_query: QueryApi, local_client_write: WriteApi,
+              remote_client_query: QueryApi):
     """Main loop"""
     while True:
 
@@ -78,32 +79,32 @@ def mainLoop(localClientQuery: QueryApi, localClientWrite: WriteApi, remoteClien
             with open("settings.yaml", "r") as set_fl:
                 settings = safe_load(set_fl)
 
-            performMirror(settings, localClientQuery, localClientWrite, remoteClientQuery)
+            perform_mirror(settings, local_client_query, local_client_write, remote_client_query)
 
-            wait(settings, localClientWrite)
+            wait(settings, local_client_write)
 
         except KeyboardInterrupt: #1
             script_is_running = False
             with open("isRunning.pickle", "wb") as run_fl:
                 pickle.dump(script_is_running, run_fl)
 
-            logger(localClientWrite, settings, "DEBUG", "Mirror service shutdown manually.")
+            logger(local_client_write, settings, "DEBUG", "Mirror service shutdown manually.")
             print("Mirror service shutdown.")
 
             return
 
-        except Exception as e: #2
-            tb_str = traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)
+        except Exception as ex: #2
+            tb_str = traceback.format_exception(etype=type(ex), value=ex, tb=ex.__traceback__)
             print("".join(tb_str))
-            logger(localClientWrite, settings, "ERROR", f"Python error occured: {e}")
-            wait(settings, localClientWrite)
+            logger(local_client_write, settings, "ERROR", f"Python error occurred: {ex}")
+            wait(settings, local_client_write)
 
 
-def logger(logWriter: WriteApi, settings: dict, level: str, message: str):
+def logger(log_writer: WriteApi, settings: dict, level: str, message: str):
     """ Input:
         WriterApi object setup for the local server
 
-        settings: Dictionary of settings from the yaml
+        settings: Dictionary of settings from the YAML file
 
         level: A string representing the importance/type of the log.
                 Recommended values: 'DEBUG', 'WARNING', and 'ERROR'.
@@ -114,7 +115,7 @@ def logger(logWriter: WriteApi, settings: dict, level: str, message: str):
 
         Output:
                 Writes the specific log to the "Logging" bucket in the database associated with the
-                logWriter variable. All entries are under the measurement name "Logs"
+                log_writer variable. All entries are under the measurement name "Logs"
 
                 """
 
@@ -122,35 +123,35 @@ def logger(logWriter: WriteApi, settings: dict, level: str, message: str):
         level = str(level)
         message = str(level)
 
-    p = Point("Logs").tag("LOG_LEVEL", level).field("Message", message).time(
+    pnt = Point("Logs").tag("LOG_LEVEL", level).field("Message", message).time(
         time=datetime.now(tz=timezone.utc))
-    logWriter.write("Logging", settings['LOCAL_ORG'], record=p)
+    log_writer.write("Logging", settings['LOCAL_ORG'], record=pnt)
 
-def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteApi,
-                  remoteClientQuery: QueryApi):
-
+def perform_mirror(settings, local_client_query: QueryApi, local_client_write: WriteApi,
+                   remote_client_query: QueryApi):
+    """Do the actual mirroring"""
     ### See if remote database is available ###
     remote_ip = settings["REMOTE_IP"]
 
-    ## Send 1 packet to the remote IP with the port removed and check if we get a resposne ##
+    ## Send 1 packet to the remote IP with the port removed and check if we get a response ##
     port_index = remote_ip.find(':')
     response = os.system(f"ping -c 1 {remote_ip[:port_index]}")
 
     if response == 0:
-        logger(localClientWrite, settings, "DEBUG", "Successfully pinged the remote database.")
+        logger(local_client_write, settings, "DEBUG", "Successfully pinged the remote database.")
     else:
-        logger(localClientWrite, settings, "DEBUG", "Unable to ping the remote database.")
+        logger(local_client_write, settings, "DEBUG", "Unable to ping the remote database.")
         return
 
     ### Mirror data we don't already have on a per-bucket basis ###
     for bucket_name in settings["BUCKETS"]:
         # Log what we are doing to the Logging bucket
-        logger(localClientWrite, settings, "DEBUG", f"Starting mirror of bucket: {bucket_name}")
+        logger(local_client_write, settings, "DEBUG", f"Starting mirror of bucket: {bucket_name}")
         print("=============== " + bucket_name + "   ================")
         ## Find the most recent data we have on the local machine
         # The flux langauge queries seem to require a time specification with the flux range()
         # function. For our application this causes problems because we don't know the timestamp of
-        # the last data point we stored (and it's not gauranteed that
+        # the last data point we stored (and it's not guaranteed that
         # it will be the same time as when we last pulled). The solution is to use multiple queries
         # and increment to larger time values for speed so that we don't have to query the entire
         # local database to figure out which data we need to pull from the remote one.
@@ -162,9 +163,12 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
         flux_times = ["-1m", "-1h", "-6h", "-12h", "-1d", "-7d", "-14d"]
         got_data = False
         for flux_time in flux_times:
-            responseCSVIterator = localClientQuery.query_csv(f'from(bucket:"{bucket_name}") |> range(start: {flux_time}) |> sort(columns: ["_time"]) |> last()')
+            response_csv_iterator = local_client_query.query_csv(f'from(bucket:"{bucket_name}") |> '
+                                                                 f'range(start: {flux_time}) |> '
+                                                                 f'sort(columns: ["_time"]) |> '
+                                                                 f'last()')
 
-            for resp in responseCSVIterator: # Only enters loop if the iterator has data
+            for resp in response_csv_iterator: # Only enters loop if the iterator has data
 
                 if got_data:
                     time_stamp = resp[time_idx]
@@ -181,7 +185,8 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
 
         ## Request data time stamped after the most recent local data for this bucket ##
         print("Querying from: ", time_stamp)
-        dataCSVIterator = remoteClientQuery.query_csv(f'from(bucket:"{bucket_name}") |> range(start: {time_stamp})')
+        data_csv_iterator = remote_client_query.query_csv(f'from(bucket:"{bucket_name}") |> '
+                                                          f'range(start: {time_stamp})')
 
         ## #Push each data point to the local client ###
 
@@ -189,7 +194,7 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
         need_headers = True
         custom_tags = []
         points=[]
-        for resp in dataCSVIterator:
+        for resp in data_csv_iterator:
             # TODO: use these records to improve mirroring, skip for now
             if "#datatype" in resp or "#group" in resp or "#default" in resp:
                 continue
@@ -234,12 +239,12 @@ def performMirror(settings, localClientQuery: QueryApi, localClientWrite: WriteA
 
         ### Actually mirror the point to local ###
         print("Mirroring ", len(points), " data points")
-        localClientWrite.write(bucket_name, settings["LOCAL_ORG"], record=points)
-        logger(localClientWrite, settings, "DEBUG",
+        local_client_write.write(bucket_name, settings["LOCAL_ORG"], record=points)
+        logger(local_client_write, settings, "DEBUG",
                f"Finished mirroring {len(points)} data points in the bucket: {bucket_name}")
 
 def wait(settings, local_client_write):
-    ### Wait the requested timeout period ###
+    """ Wait the requested timeout period """
     print("Waiting for ", settings['REFRESH_RATE'], " before trying to mirror.")
     logger(local_client_write, settings, "DEBUG",
            f"Waiting for {settings['REFRESH_RATE']} before trying to mirror.")
@@ -256,9 +261,8 @@ if __name__ == "__main__":
 
     # Catch the use case where the isRunning.pickle file has the wrong values
     # do to a forced exit of this program (other than ctrl-c)
+    arg_in = None
     if len(sys.argv) >= 2:
         arg_in = sys.argv[1]
-    else:
-        arg_in = None
 
     main(arg_in)
