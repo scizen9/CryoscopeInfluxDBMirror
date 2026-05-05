@@ -164,7 +164,7 @@ def perform_mirror(settings, local_client_query: QueryApi,
         # The flux langauge queries seem to require a time specification with
         # the flux range() function. For our application this causes problems
         # because we don't know the timestamp of the last data point we stored
-        # (and it's not gauranteed that it will be the same time as when we last
+        # (and it's not guaranteed that it will be the same time as when we last
         # pulled). The solution is to use multiple queries and increment to
         # larger time values for speed so that we don't have to query the entire
         # local database to figure out which data we need to pull from the
