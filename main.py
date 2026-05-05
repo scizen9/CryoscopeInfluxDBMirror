@@ -145,7 +145,7 @@ def perform_mirror(settings, local_client_query: QueryApi,
     ### See if remote database is available ###
     remote_ip = settings["REMOTE_IP"]
 
-    ## Send 1 packet to the remote IP with the port removed and check if we get a resposne ##
+    ## Send 1 packet to the remote IP with the port removed and check if we get a response ##
     port_index = remote_ip.find(':')
     response = os.system(f"ping -c 1 {remote_ip[:port_index]}")
 
@@ -155,7 +155,7 @@ def perform_mirror(settings, local_client_query: QueryApi,
         logger(local_client_write, settings, "DEBUG", "Unable to ping the remote database.")
         return
 
-    ### Mirror data we dont already have on a per-bucket basis ###
+    ### Mirror data we don't already have on a per-bucket basis ###
     for bucket_name in settings["BUCKETS"]:
         # Log what we are doing to the Logging bucket
         logger(local_client_write, settings, "DEBUG", f"Starting mirror of bucket: {bucket_name}")
