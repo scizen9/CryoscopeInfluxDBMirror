@@ -93,7 +93,7 @@ def main_loop(local_client_query: QueryApi, local_client_write: WriteApi,
 
             return
 
-        except Exception as ex: #2
+        except Exception as ex: # pylint: disable=broad-except
             tb_str = traceback.format_exception(etype=type(ex), value=ex, tb=ex.__traceback__)
             print("".join(tb_str))
             logger(local_client_write, settings, "ERROR", f"Python error occurred: {ex}")
@@ -127,6 +127,7 @@ def logger(log_writer: WriteApi, settings: dict, level: str, message: str):
         time=datetime.now(tz=timezone.utc))
     log_writer.write("Logging", settings['LOCAL_ORG'], record=pnt)
 
+# pylint: disable=too-many-branches, too-many-statements, too-many-locals
 def perform_mirror(settings, local_client_query: QueryApi, local_client_write: WriteApi,
                    remote_client_query: QueryApi):
     """Do the actual mirroring"""
@@ -162,6 +163,7 @@ def perform_mirror(settings, local_client_query: QueryApi, local_client_write: W
         # Times in the past in flux notation
         flux_times = ["-1m", "-1h", "-6h", "-12h", "-1d", "-7d", "-14d"]
         got_data = False
+        time_idx = None
         for flux_time in flux_times:
             response_csv_iterator = local_client_query.query_csv(f'from(bucket:"{bucket_name}") |> '
                                                                  f'range(start: {flux_time}) |> '
@@ -171,8 +173,10 @@ def perform_mirror(settings, local_client_query: QueryApi, local_client_write: W
             for resp in response_csv_iterator: # Only enters loop if the iterator has data
 
                 if got_data:
-                    time_stamp = resp[time_idx]
-                    break
+                    if time_idx is not None:
+                        time_stamp = resp[time_idx]
+                        break
+                    print("ERROR - time index not found!!")
 
                 for i, entry in enumerate(resp):
                     if entry == "_time":
@@ -192,10 +196,14 @@ def perform_mirror(settings, local_client_query: QueryApi, local_client_write: W
 
         # Parse the query csv rows into writeable point objects
         need_headers = True
-        custom_tags = []
+        custom_tags = {}
         points=[]
+        value_idx = None
+        measurement_idx = None
+        field_idx = None
+        time_idx = None
         for resp in data_csv_iterator:
-            # TODO: use these records to improve mirroring, skip for now
+            # Use these records to improve mirroring, skip for now
             if "#datatype" in resp or "#group" in resp or "#default" in resp:
                 continue
             if not need_headers and "result" in resp:
@@ -205,16 +213,16 @@ def perform_mirror(settings, local_client_query: QueryApi, local_client_write: W
                 custom_tags = {} # key: index
                 for i, header in enumerate(resp):
                     if header == '':
-                        empty_idx = i
-                    elif header == 'result':
-                        result_idx = i
-                    elif header == 'table':
-                        table_idx = i
-                    elif header == '_start':
-                        start_idx = i
-                    elif header == '_stop':
-                        stop_idx = i
-                    elif header == '_time':
+                        continue
+                    if header == 'result':
+                        continue
+                    if header == 'table':
+                        continue
+                    if header == '_start':
+                        continue
+                    if header == '_stop':
+                        continue
+                    if header == '_time':
                         time_idx = i
                     elif header == '_value':
                         value_idx = i
@@ -225,17 +233,21 @@ def perform_mirror(settings, local_client_query: QueryApi, local_client_write: W
                     else:
                         custom_tags[header] = i
             elif not need_headers:
-                # Check data type of resp[value_idx]
-                try:
-                    val = float(resp[value_idx])
-                except ValueError:
-                    val = resp[value_idx]
-                point_to_mirror = Point(resp[measurement_idx]).field(resp[field_idx],
-                                                                  val).time(resp[time_idx])
-                for tag_name, tag_idx in zip(custom_tags.keys(), custom_tags.values()):
-                    point_to_mirror.tag(tag_name, resp[tag_idx])
+                if (value_idx is None or measurement_idx is None or
+                        field_idx is None or time_idx is None):
+                    print("ERROR: value index not found!!")
+                else:
+                    # Check data type of resp[value_idx]
+                    try:
+                        val = float(resp[value_idx])
+                    except ValueError:
+                        val = resp[value_idx]
+                    point_to_mirror = Point(resp[measurement_idx]).field(resp[field_idx],
+                                                                      val).time(resp[time_idx])
+                    for tag_name, tag_idx in zip(custom_tags.keys(), custom_tags.values()):
+                        point_to_mirror.tag(tag_name, resp[tag_idx])
 
-                points += [point_to_mirror]
+                    points += [point_to_mirror]
 
         ### Actually mirror the point to local ###
         print("Mirroring ", len(points), " data points")
@@ -260,9 +272,9 @@ def wait(settings, local_client_write):
 if __name__ == "__main__":
 
     # Catch the use case where the isRunning.pickle file has the wrong values
-    # do to a forced exit of this program (other than ctrl-c)
-    arg_in = None
+    # due to a forced exit of this program (other than ctrl-c)
     if len(sys.argv) >= 2:
         arg_in = sys.argv[1]
-
-    main(arg_in)
+        main(arg_in)
+    else:
+        main()
