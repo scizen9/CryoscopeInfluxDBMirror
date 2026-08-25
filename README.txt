@@ -12,9 +12,10 @@ Before starting this program several prerequisites need to be completed:
 8) Buckets you want to mirror should have the same names on the local and remote databases.
 9) Have python 3 installed with the additional packages influxdb-client and pyyaml.
 10) Be sure any firewall allows the port for the database to be accessible
+11) It appears that higher versions of python don't work: Use python 3.9.13
 
 Start Mirroring Data:
-1) Make sure the prerequiste steps have been completed
+1) Make sure the prerequisite steps have been completed
 2) Edit settings.yaml and fill it out with the proper information in yaml syntax. Summary of fields:
 	Key:                  Purpose:										                                Notes:
     'REMOTE_IP'           The IP of the remote database from which data will be pulled.			        The IP should contain a port as in
@@ -42,18 +43,22 @@ Start Mirroring Data:
 
 	'BUCKETS'		      A list of bucket names that will be mirrored.				                    The bucket names on the local and remote
 															                                            databases should be the same.
+    See the 'settings.yaml' file for examples (without the tokens).
+
 3) Start the mirror service from the command line (assuming you are in the CryoscopeInfluxDBMirror directory):
 	Mirroring will continue indefinitely:
-		1) Use correct environment, if on meridian use 'source ~/scr/cryoscope/python/cryoscopeEnv/bin/activate'
-		2) 'nohup ./main.py'
-		3) Close your terminal window
+		1) Use correct environment, check which python and make sure it is python3.9.13
+		2) screen
+		3) python main.py forceOn
+		3) Disconnect from screen with Ctrl-A d
 	Mirroring will stop when ssh session ends: 
 		1) 'python3 main.py' or './main.py'
 
 Safely stop the mirroring:
-	If mirroring started with 'nohup':
-		- Find the process ID associated with 'main.py' using 'ps -ef | grep python', the PID is the second column
-		- Kill the process with the -2 keyboard interrupt signal using 'kill -2 <main.py PID>
+	If mirroring started with screen:
+		- Find the screen with 'screen -ls'
+		- Attach to screen with 'screen -r'
+		- Kill the process with Ctrl-C
 	If mirroring started with 'python3' or './main.py':
 		- Press 'Ctrl-C'  
 
@@ -68,7 +73,7 @@ the state is on, it will print the following:
 
 To make sure this program is not running, use 'ps -ef | grep python' and make sure there isn't a process associated with 'main.py'. The full family of
 forced start commands are:
-	Force start and mirror indefinitely: 'nohup ./main.py forceOn'
+	Force start and mirror indefinitely: 'screen', then './main.py forceOn'
 	Force start and mirroring will stop when ssh session ends: 'python3 main.py forceOn' or './main.py forceOn'
 
 Developer Documentation and Notes:
