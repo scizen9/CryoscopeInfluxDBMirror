@@ -150,16 +150,14 @@ def perform_mirror(settings, local_client_query: QueryApi, local_client_write: W
         logger(local_client_write, settings, "DEBUG", f"Starting mirror of bucket: {bucket_name}")
         print("=============== " + bucket_name + "   ================")
         ## Find the most recent data we have on the local machine
-        # The flux langauge queries seem to require a time specification with the flux range()
-        # function. For our application this causes problems because we don't know the timestamp of
-        # the last data point we stored (and it's not guaranteed that
-        # it will be the same time as when we last pulled). The solution is to use multiple queries
-        # and increment to larger time values for speed so that we don't have to query the entire
-        # local database to figure out which data we need to pull from the remote one.
-
-        # If the local database has never mirrored before or if hard drives
-        # have been cycled use the recovery date
-        time_stamp = settings['RECOVER_DATA_SINCE_DATE']
+        # The flux langauge queries seem to require a time specification with
+        # the flux range() function. For our application this causes problems
+        # because we don't know the timestamp of the last data point we stored
+        # (and it's not guaranteed that it will be the same time as when we last
+        # pulled). The solution is to use multiple queries and increment to
+        # larger time values for speed so that we don't have to query the entire
+        # local database to figure out which data we need to pull from the
+        # remote one.
         # Times in the past in flux notation
         flux_times = ["-1m", "-1h", "-6h", "-12h", "-1d", "-7d", "-14d"]
         got_data = False
