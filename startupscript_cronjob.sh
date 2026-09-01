@@ -14,7 +14,7 @@ mirrordir=$HOME/CryoscopeInfluxDBMirror
 #
 ret=`pgrep -f CryoscopeInfluxDBMirror | wc -l`
 if [ $ret -lt 1 ]; then
-      cd $tooldir
+      cd $mirrordir
       # Use the line below instead to enable screen logging
       # screen -L -dmS CryoscopeInfluxDBMirror python3 main.py forceOn
       screen -dmS CryoscopeInfluxDBMirror python3 ./main.py forceOn
