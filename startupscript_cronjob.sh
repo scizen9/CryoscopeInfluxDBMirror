@@ -17,5 +17,5 @@ if [ $ret -lt 1 ]; then
       cd $mirrordir
       # Use the line below instead to enable screen logging
       # screen -L -dmS CryoscopeInfluxDBMirror python3 main.py forceOn
-      screen -dmS cryoscope_db_mirror ./main.py forceOn
+      screen -dmS cryoscope_db_mirror /usr/local/anaconda3/bin/python main.py forceOn
 fi
